@@ -6,9 +6,16 @@ Everything runs locally. Language plugins are JSON files, so new alphabets can b
 
 ## Run
 
-Requires Go 1.26 or newer.
+Install with Homebrew (macOS or Linux):
 
-Install and run:
+```sh
+brew install nickroux/tap/ttt
+ttt
+```
+
+Homebrew downloads a prebuilt binary for Apple Silicon or Intel Macs, or ARM64/x86-64 Linux. Go is not required. Upgrade with `brew upgrade ttt` and check the installed version with `ttt --version`.
+
+Alternatively, install with Go 1.26 or newer:
 
 ```sh
 go install github.com/NickRoux/ttt@latest
@@ -138,4 +145,22 @@ Architecture:
 go test -race ./...
 go vet ./...
 go test ./internal/transliterate -bench . -benchmem
+python3 -m unittest discover -s scripts -p 'test_*.py'
 ```
+
+## Releases
+
+Push a stable version tag to build and publish four platform archives, SHA-256 checksums, and a generated Homebrew formula:
+
+```sh
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+After the release workflow succeeds, update the [Homebrew tap](https://github.com/NickRoux/homebrew-tap) with its version:
+
+```sh
+gh workflow run update.yml --repo NickRoux/homebrew-tap -f version=0.2.0
+```
+
+The tap downloads the formula generated from that release's checksums. Both workflows use their own repository's GitHub token; no cross-repository token is required.

@@ -16,6 +16,8 @@ import (
 	"github.com/NickRoux/ttt/internal/tui"
 )
 
+var version = "dev"
+
 func main() {
 	interactive := term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stderr.Fd()))
 	if err := run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr, interactive); err != nil {
@@ -34,6 +36,7 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer, interact
 	id := flags.String("language", "ru", "language plugin id")
 	directory := flags.String("plugins", pluginDir, "directory containing additional language JSON plugins")
 	list := flags.Bool("list-languages", false, "list installed language plugins")
+	showVersion := flags.Bool("version", false, "print version and exit")
 	flags.Usage = func() {
 		fmt.Fprint(diagnostics, "Usage: ttt [flags] [text]\n\nType in the terminal, convert text, or pipe stdin.\n\n")
 		flags.PrintDefaults()
@@ -43,6 +46,10 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer, interact
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
 		}
+		return err
+	}
+	if *showVersion {
+		_, err := fmt.Fprintln(output, "ttt", version)
 		return err
 	}
 	languages, err := language.Load(*directory)

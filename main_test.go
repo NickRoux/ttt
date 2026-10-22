@@ -11,6 +11,7 @@ func TestCLI(t *testing.T) {
 		name, input, want string
 		args              []string
 	}{
+		{name: "version", args: []string{"--version"}, want: "ttt dev\n"},
 		{name: "arguments", args: []string{"Privet, mir!"}, want: "Привет, мир!\n"},
 		{name: "pipe preserves newline", input: "Dobryj den'!\n", want: "Добрый день!\n"},
 		{name: "empty pipe", want: ""},

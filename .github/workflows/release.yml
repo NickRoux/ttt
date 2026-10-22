@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Validate stable version tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: '[[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]'
+      - run: go test -race ./...
+      - run: go vet ./...
+      - run: python3 -m unittest discover -s scripts -p 'test_*.py'
+
+  build:
+    needs: verify
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [darwin, linux]
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Build release archive
+        env:
+          TAG: ${{ github.ref_name }}
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: "0"
+        run: |
+          mkdir -p dist/package
+          go build -trimpath -ldflags "-s -w -X main.version=${TAG#v}" -o dist/package/ttt .
+          cp README.md dist/package/
+          cp -R examples dist/package/
+          tar -C dist/package -czf "dist/ttt_${TAG#v}_${GOOS}_${GOARCH}.tar.gz" ttt README.md examples
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: ttt-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Generate checksums and Homebrew formula
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          (cd dist && sha256sum *.tar.gz > checksums.txt)
+          python3 scripts/homebrew_formula.py --version "${TAG#v}" --checksums dist/checksums.txt --output dist/ttt.rb
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" dist/*.tar.gz dist/checksums.txt dist/ttt.rb \
+            --verify-tag --title "ttt $TAG" --generate-notes
